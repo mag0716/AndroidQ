@@ -298,6 +298,8 @@ NDK 絡みでカバーしていない領域なので省略
 
 ### Autofill improvements
 
+[TODO] Autofill サンプル作る
+
 #### Compatibility-related autofill requests
 
 * `FillRequest.FLAG_COMPATIBILITY_MODE_REQUEST`
@@ -305,3 +307,148 @@ NDK 絡みでカバーしていない領域なので省略
   * [疑問] 互換性モードってなに？
 
 #### Save username and password simultaneously
+
+* `SaveInfo.FLAG_DELAY_SAVE`
+  * ユーザ名やパスワードが別の画面で利用するケースがサポートされた
+  * ユーザ名、パスワードの保存タイミングを変えられる
+
+#### User interaction with the Save UI
+
+* パスワードの入力領域の表示を切り替えられる
+
+#### Support for updating datasets
+
+* Autofill が既存のパスワードを更新できるようになる
+* 新しいパスワードで置き換えるかの確認が表示される
+
+#### Field Classification improvements
+
+[疑問] Field Classification API って何用？
+
+##### UserData.Builder constructor
+
+* Builder パターンぽくなるようにコンストラクタが変わった
+  * [疑問] API リファレンス的には何も変わっていない
+
+##### Allow a Value to be mapped to multiple types of Category IDs
+
+* `UserData.Builder` 利用時に 複数の Category IDs に値をマッピングできるようになった
+  * Q 未満だと例外が throw される
+
+##### Improved support for credit card numbers
+
+* 4桁の数字をクレジットカードの最後の入力領域として扱うようになった
+
+##### Support for app-specific field classification
+
+* `FillResponse.setUserData()`
+  * アプリ独自のユーザデータを許可するようになった
+  * アプリのコンテンツの領域を Autofill 対象として扱うようになる
+
+### UI and system controls
+
+#### Support JVMTI PopFrame caps
+
+* JVMTI = Java Virtual Machine Tools Interface
+* カバーしていない領域なので省略
+
+#### Surface control API
+
+* `SurfaceControl`
+* カバーしていない領域なので省略
+
+#### WebView huge renderer detection
+
+* `WebViewRendererClient`
+* カバーしていない領域なので省略
+
+#### Settings panels
+
+* アプリ利用中に設定パネルを表示させることができる
+  * Internet Connectivity
+  * NFC
+  * Volume
+* Android Q 以上では Settigs Panel を、Q 未満では端末の設定アプリに遷移するように実装予定
+* [バグ？] Seettings Panel を終了すると、`onActivityResult` の `resultCode` は必ず 0(RESULT_CANCELLED) になっている
+  * 一度設定を変更し、バックキーをタップしても設定は反映されているので、キャンセルという概念はなさそう
+
+#### Sharing improvements
+
+* [TODO] 詳細を https://developer.android.com/preview/features/sharing で確認
+* [TODO] サンプルを https://github.com/googlesamples/android-SharingShortcuts で確認
+
+#### Roles
+
+* Roles という標準機能が導入される
+  * OS はアプリに与えられた役割に従ったシステム機能やユーザデータ領域へのアクセスが許可される
+  * `RoleManager` を使用してアプリに Roles を保持するように要求できる(beta1 の時点では)
+* [TODO] 詳細を https://developer.android.com/preview/features/roles で確認
+
+### Kotlin
+
+#### Nullability annotations for libcore APIs
+
+* libcore の API に `@Nullable` がつくようになった
+  * `@RecentlyNullable`, `@RecentlyNonNull` が使われるようになる
+    * `@Nullable`, `@NonNull` だとエラーになるが、上記だと警告になる
+    * Android 9 で追加されたアノテーションも変更される
+
+### NDK
+
+#### Mallinfo-based garbage collection triggering
+
+* カバーしていない領域なので省略
+
+#### Improved debugging of file descriptor ownership
+
+* カバーしていない領域なので省略
+
+## https://developer.android.com/preview/features/roles
+
+* アプリが Role を保持すると、その Role の特権を行えるようになる
+* アプリは適切な Roles を宣言することができるが、必須項目を満たしている必要がある
+  * Android Q 用の `uses-permission` の定義
+  * Roles に必要な `<category>` の定義
+
+[TODO] サンプルアプリ作成 -> googlesamples もなくユースケースなども不明のため後回し
+[疑問] デフォルトアプリ設定との関係は？
+  -> デフォルトアプリ設定の画面に Role の設定項目が追加されている
+
+### Role defined in Android Q
+
+* ROLE_BROWSER
+  * Webページを開く Intent を優先的に扱えるようになる
+* ROLE_DIALER
+  * 着信と履歴を優先的に扱えるようになる。また、SMS の送信が可能になる
+* ROLE_SMS
+  * SMS の送受信が可能になる。また、連絡先への読み込みが可能になる
+* ROLE_HOME
+  * デフォルトランチャーになる
+* ROLE_MUSIC
+  * 音楽メディアディレクトリへのフルアクセス権限
+* ROLE_GALLERY
+  * 写真、動画のメディアディレクトリへのフルアクセス権限
+
+[疑問点] どのタイミングで Role を要求するのがよいのか？
+[疑問点] Roles が与えられていないアプリは使えるの？ アプリによっては Roles がないとまともに動かないアプリもありそう？
+[疑問点] どのアプリにも Roles が与えられていない状況はありえる？
+  -> ありえる
+[疑問点] フルアクセスというのは他アプリで作成したファイルの参照も含まれる？
+
+### Satisfy role requirements
+
+* アプリが Roles を保持するためには必須項目を満たす必要がある
+  * AndroidManifest.xml の変更
+
+[疑問点] 必須項目を満たしていない場合に、Roles を要求するとどうなる？
+
+### Request role assignment to your app
+
+* Roles が定義されているかを決める
+* ユーザがアプリに Roles をアサインするかどうかを決める
+* アプリが Roles を受け取るかどうかを決める
+* `RoleManager`
+
+## https://developer.android.com/preview/features/sharing
+
+### Sharing Shortcuts API
