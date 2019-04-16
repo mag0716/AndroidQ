@@ -74,7 +74,101 @@ https://developer.android.com/preview/privacy/scoped-storage
 
 ## Work with other apps' files
 
+### Access files created by other apps
 
+* 他のアプリが外部ストレージに保存したファイルにアクセスするためには以下が必要
+  * パーミッションの取得
+  * `ContentResolver` の利用
+* Note：
+  `loadThumbnail()` はプレビュー画像を取得するための新 API
+  ファイル全体を取得する前に `loadThumbnail()` を使うのが良い
+
+### Write to files created by other apps
+
+* [重要] 通常はアプリ所有のファイルしか書き込みできないがデフォルトアプリに指定されていたら書き込みが可能になる
+  * デフォルトの Photo Manager app だったら、Photos & Videos Shared collection のファイルは修正可能
+  * デフォルトの Music app だったら、Music Shared collection のファイルは修正可能
+* Note：デフォルトアプリでないこともちゃんと考慮しておく必要がある
+* ファイルの修正には `ContentResolver` を利用する
+  * 修正操作中は `RecoverableSecurityException` を catch してユーザに書き込み権限の許可をリクエストすることができる
+
+## Access media files from native code
+
+* 特殊なメディアファイルを扱う必要がある場合、ファイル記述子を指定する必要がある
+  * `var fileOpenMode = "r"`
+* [疑問点] native code って何？
+* [TODO] https://www.youtube.com/watch?v=oIn0MZQJpp0&t=15m20s みる
+
+## Access specific files
+
+* 以下のようなケースではパーミッションは不要
+  * photo-editing app で描画を開く
+    * [疑問点] イメージつかない
+  * ユーザが選択した位置にテキストファイルを保存する
+* これらのケースでは Storage Access Framework を使う
+
+## Companion app file sharing
+
+* 他のアプリと相互にファイルアクセスが必須な場合は、`content://` を利用する
+  * [詳細](https://developer.android.com/training/secure-file-sharing/setup-sharing)
+
+## Compatibility mode for previously installed apps on upgrading devices
+
+* 外部ストレージのファイルアクセスの制限は targetSdkVersion が Android Q 以上のアプリかAndroid Q の端末に新規インストールした場合に適用される
+  * [重要] Android Q でも動きが変わる
+* ファイルアクセスの互換モードは以下の状態に適用される
+  * アプリの targetSdkVersion が Android 9 以下
+  * アプリがインストールされた状態で、端末の OS が Android Q に更新された
+* 互換モードは以下のような動作になる
+  * 他のアプリが作成した MediaStore collections にあるファイルにアクセスできる
+  * Storage パーミッションが Photos & Videos, Music などの個別のパーミッションよりも優先される
+* 互換モードはアプリがアンインストールされるまで維持される
+* Note：互換モードは同じ端末にアプリを再インストールしても有効にならない
+
+## Identify a specific external storage device
+
+* Android 9 以下では全てのストレージ上のファイルは `external` 以下に保存される
+* Android Q では端末の外部ストレージごとにユニークな名前が提供される
+* Note：primary な外部ストレージは常に `external` が使われる
+* ユニークな名前が使われるので、volume名と ID を一緒に使う必要がある
+  * `MediaStore.Images.getContentUri()` などで volume名を渡してアクセスすることができる
+
+### Get the list of external storage devices
+
+* 全ての有効な volume のリストを取得するには、`MediaStore.getAllVolumeNames()` を利用する
+
+### Set up virtual external storage device
+
+* 取り外し可能な外部ストレージがない場合は、テスト目的で以下のコマンドで有効にできる
+  * `adb shell sm set-virtual-disk true`
+
+## Test the behavior change
+
+### Toggle the behavior change
+
+* Android Q でデフォルトで有効になっている動作を以下のコマンドで無効化することができる
+  * `adb shell sm set-isolated-storage off`
+* 上記のコマンド後に端末が再起動する
+  * 再起動されなかったら数分後にリトライする
+* 設定値の確認は以下のコマンドで
+  * `adb shell getprop sys.isolated_storage_snapshot`
+
+### Test compatibility mode behavior
+
+* 互換モードをテスト用に有効化することができる
+  * `adb shell cmd appops set your-package-name android:legacy_storage allow && \
+adb shell am force-stop your-package-name`
+* 互換モードを無効化するにはアプリのアンインストールか以下のコマンドで
+  * `adb shell cmd appops set your-package-name android:legacy_storage default && \
+adb shell am force-stop your-package-name`
+
+## Browse external storage as file manager
+
+* [重要] 外部ストレージを確認するには `ACTION_OPEN_DOCUMENT_TREE` を使う
+  * [サンプルアプリ](https://github.com/googlesamples/android-DirectorySelection)
+* Caution：
+  `StorageVolume#createAccessIntent()` は deprecated になった
+  使わないようにすれば、Android Q のユーザが外部ストレージのファイルを見れないようにすることができる
 
 
 ## TODO：サンプルアプリ
