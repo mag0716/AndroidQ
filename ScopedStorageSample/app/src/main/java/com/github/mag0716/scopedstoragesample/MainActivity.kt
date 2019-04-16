@@ -1,6 +1,7 @@
 package com.github.mag0716.scopedstoragesample
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
@@ -45,6 +46,10 @@ class MainActivity : AppCompatActivity() {
         saveToSandbox()
     }
 
+    /**
+     * sandbox へのファイル作成はパーミッション不要
+     * 他のアプリからのアクセスは不可
+     */
     private fun saveToSandbox() {
         val sandbox = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         // /storage/emulated/0/Android/data/com.github.mag0716.scopedstoragesample/files/Pictures/sample.png
@@ -62,8 +67,21 @@ class MainActivity : AppCompatActivity() {
         fileOutputStream.close()
     }
 
+    /**
+     * sandbox へのファイル読み込みはパーミッション不要
+     * 他のアプリからのアクセスは不可
+     */
     private fun loadFromSandbox() {
-
+        val sandbox = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        // /storage/emulated/0/Android/data/com.github.mag0716.scopedstoragesample/files/Pictures/sample.png
+        val file = File(sandbox, "sample.png")
+        Log.d(TAG, "loadFromSandbox : $file")
+        if (file.exists()) {
+            val bitmap = BitmapFactory.decodeFile(file.path)
+            imageView.setImageBitmap(bitmap)
+        } else {
+            Log.w(TAG, "loadFromSandbox : $file is not exists.")
+        }
     }
 
     private fun saveToSharedCollection() {
