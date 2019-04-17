@@ -17,6 +17,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val TAG = "ScopedStorage"
+        const val FILE_NAME = "sample.png"
     }
 
     private lateinit var loadFromSandboxButton: Button
@@ -52,19 +53,11 @@ class MainActivity : AppCompatActivity() {
      */
     private fun saveToSandbox() {
         val sandbox = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        if (sandbox.isDirectory && sandbox.exists().not()) {
+            sandbox.mkdir()
+        }
         // /storage/emulated/0/Android/data/com.github.mag0716.scopedstoragesample/files/Pictures/sample.png
-        val file = File(sandbox, "sample.png")
-        Log.d(TAG, "saveToSandbox : $file")
-        file.createNewFile()
-        val bitmap = getDrawable(R.mipmap.ic_launcher).toBitmap()
-
-        val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.PNG, 0, outputStream)
-
-        val fileOutputStream = FileOutputStream(file)
-        fileOutputStream.write(outputStream.toByteArray())
-        fileOutputStream.flush()
-        fileOutputStream.close()
+        createFileFromBitmap(getDrawable(R.mipmap.ic_launcher).toBitmap(), sandbox, FILE_NAME)
     }
 
     /**
@@ -74,7 +67,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadFromSandbox() {
         val sandbox = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         // /storage/emulated/0/Android/data/com.github.mag0716.scopedstoragesample/files/Pictures/sample.png
-        val file = File(sandbox, "sample.png")
+        val file = File(sandbox, FILE_NAME)
         Log.d(TAG, "loadFromSandbox : $file")
         if (file.exists()) {
             val bitmap = BitmapFactory.decodeFile(file.path)
@@ -85,10 +78,47 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun saveToSharedCollection() {
+        val shared = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+        if (shared.isDirectory && shared.exists().not()) {
+            shared.mkdir()
+        }
+        // /storage/emulated/0/Pictures/sample.png
+        createFileFromBitmap(getDrawable(R.mipmap.ic_launcher).toBitmap(), shared, FILE_NAME)
 
+        // TODO: Caused by: java.io.IOException: No such file or directory で保存できない
+        // Android 9 以下であればパーミションがあれば保存できる
     }
 
     private fun loadFromSharedCollection() {
+        val shared = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+        val file = File(shared, FILE_NAME)
+        Log.d(TAG, "loadFromSharedCollection : $file")
+        if (file.exists()) {
+            val bitmap = BitmapFactory.decodeFile(file.path)
+            imageView.setImageBitmap(bitmap)
+        } else {
+            Log.w(TAG, "loadFromSharedCollection : $file is not exists.")
+        }
+    }
 
+    private fun createFileFromBitmap(bitmap: Bitmap, directory: File, fileName: String) {
+        if (directory.isDirectory && directory.exists().not()) {
+            directory.mkdir()
+        }
+        val file = File(directory, fileName)
+        Log.d(TAG, "createFileFromBitmap : ${file.path}, ${file.exists()}")
+        if (file.exists()) {
+            return
+        }
+
+        file.createNewFile()
+
+        val outputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 0, outputStream)
+
+        val fileOutputStream = FileOutputStream(file)
+        fileOutputStream.write(outputStream.toByteArray())
+        fileOutputStream.flush()
+        fileOutputStream.close()
     }
 }
