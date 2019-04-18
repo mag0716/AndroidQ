@@ -1,9 +1,11 @@
 package com.github.mag0716.scopedstoragesample
 
+import android.content.ContentValues
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.Button
 import android.widget.ImageView
@@ -18,6 +20,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val TAG = "ScopedStorage"
         const val FILE_NAME = "sample.png"
+        const val SHARED_FILE_NAME = "sample_shared.png"
     }
 
     private lateinit var loadFromSandboxButton: Button
@@ -45,6 +48,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         saveToSandbox()
+
+        // debug
+        Log.d(TAG, "MediaStore.getAllVolumeNames = ${MediaStore.getAllVolumeNames(this)}")
     }
 
     /**
@@ -83,15 +89,25 @@ class MainActivity : AppCompatActivity() {
             shared.mkdir()
         }
         // /storage/emulated/0/Pictures/sample.png
-        createFileFromBitmap(getDrawable(R.mipmap.ic_launcher).toBitmap(), shared, FILE_NAME)
+        val file = createFileFromBitmap(getDrawable(R.mipmap.ic_launcher).toBitmap(), shared, SHARED_FILE_NAME)
 
         // TODO: Caused by: java.io.IOException: No such file or directory で保存できない
         // Android 9 以下であればパーミションがあれば保存できる
+
+        // shared collection に保存するというのは、insert で行うの？
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, SHARED_FILE_NAME)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            put(MediaStore.Images.Media.DATA, file.absolutePath)
+        }
+        val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+        Log.d(TAG, "saveToSharedCollection : $uri")
+
     }
 
     private fun loadFromSharedCollection() {
         val shared = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-        val file = File(shared, FILE_NAME)
+        val file = File(shared, SHARED_FILE_NAME)
         Log.d(TAG, "loadFromSharedCollection : $file")
         if (file.exists()) {
             val bitmap = BitmapFactory.decodeFile(file.path)
@@ -101,14 +117,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun createFileFromBitmap(bitmap: Bitmap, directory: File, fileName: String) {
+    private fun createFileFromBitmap(bitmap: Bitmap, directory: File, fileName: String): File {
         if (directory.isDirectory && directory.exists().not()) {
             directory.mkdir()
         }
         val file = File(directory, fileName)
         Log.d(TAG, "createFileFromBitmap : ${file.path}, ${file.exists()}")
         if (file.exists()) {
-            return
+            return file
         }
 
         file.createNewFile()
@@ -120,5 +136,7 @@ class MainActivity : AppCompatActivity() {
         fileOutputStream.write(outputStream.toByteArray())
         fileOutputStream.flush()
         fileOutputStream.close()
+
+        return file
     }
 }
