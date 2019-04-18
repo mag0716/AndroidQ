@@ -1,12 +1,14 @@
 package com.github.mag0716.scopedstoragesample
 
 import android.Manifest
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Environment
+import android.provider.BaseColumns
 import android.provider.MediaStore
 import android.util.Log
 import android.widget.Button
@@ -49,7 +51,8 @@ class MainActivity : AppCompatActivity() {
             saveToSharedCollection()
         }
         loadFromSharedCollectionButton.setOnClickListener {
-            loadFromSharedCollection()
+            //loadFromSharedCollection()
+            loadOtherAppFileFromSharedCollection()
         }
 
         requestPermission()
@@ -143,6 +146,38 @@ class MainActivity : AppCompatActivity() {
         } else {
             Log.w(TAG, "loadFromSharedCollection : $file is not exists.")
         }
+    }
+
+    private fun loadOtherAppFileFromSharedCollection() {
+        val projection = listOf(BaseColumns._ID, MediaStore.Images.Media.DISPLAY_NAME)
+        val cursor = contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection.toTypedArray(), null, null, null
+        )
+
+        // パーミッションがないと cursor が 0件になる。エラーは表示されない
+        if (cursor.moveToFirst().not()) {
+            cursor.close()
+            return
+        }
+
+        val idColumnIndex = cursor.getColumnIndex(BaseColumns._ID)
+        val displayNameColumnIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+
+        Log.d(
+            TAG,
+            "loadOtherAppFileFromSharedCollection : " +
+                    "${cursor.getString(displayNameColumnIndex)} : ${cursor.getLong(idColumnIndex)}"
+        )
+
+        val contentUri = ContentUris.withAppendedId(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            cursor.getLong(idColumnIndex)
+        )
+        Log.d(TAG, "loadOtherAppFileFromSharedCollection : $contentUri")
+        imageView.setImageURI(contentUri)
+
+        cursor.close()
     }
 
     private fun createFileFromBitmap(bitmap: Bitmap, directory: File, fileName: String): File {
