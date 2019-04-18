@@ -1,6 +1,8 @@
 package com.github.mag0716.scopedstoragesample
 
+import android.Manifest
 import android.content.ContentValues
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -10,6 +12,8 @@ import android.util.Log
 import android.widget.Button
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -21,6 +25,7 @@ class MainActivity : AppCompatActivity() {
         const val TAG = "ScopedStorage"
         const val FILE_NAME = "sample.png"
         const val SHARED_FILE_NAME = "sample_shared.png"
+        const val REQUEST_READ_MEDIA_IMAGES = 1
     }
 
     private lateinit var loadFromSandboxButton: Button
@@ -47,10 +52,33 @@ class MainActivity : AppCompatActivity() {
             loadFromSharedCollection()
         }
 
+        requestPermission()
         saveToSandbox()
 
         // debug
         Log.d(TAG, "MediaStore.getAllVolumeNames = ${MediaStore.getAllVolumeNames(this)}")
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (requestCode == REQUEST_READ_MEDIA_IMAGES) {
+            val isGranted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            Log.d(TAG, "onRequestPermissionResult : $requestCode, $isGranted")
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        }
+    }
+
+    private fun requestPermission() {
+        val permission = Manifest.permission.READ_MEDIA_IMAGES
+        if (ContextCompat.checkSelfPermission(this, permission)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, permission)) {
+
+            } else {
+                ActivityCompat.requestPermissions(this, listOf(permission).toTypedArray(), REQUEST_READ_MEDIA_IMAGES);
+            }
+        }
     }
 
     /**
