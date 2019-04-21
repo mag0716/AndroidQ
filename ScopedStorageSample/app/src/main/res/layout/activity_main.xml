@@ -23,7 +23,8 @@
             android:text="Save Shared"
             app:layout_constraintLeft_toRightOf="@id/load_sandbox_button"
             app:layout_constraintRight_toLeftOf="@id/load_shared_button"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintTop_toTopOf="parent"
+            android:visibility="gone"/>
 
     <Button
             android:id="@+id/load_shared_button"

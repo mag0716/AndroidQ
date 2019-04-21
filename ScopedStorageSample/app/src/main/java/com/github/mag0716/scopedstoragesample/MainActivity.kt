@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Environment
+import android.os.ParcelFileDescriptor
 import android.provider.BaseColumns
 import android.provider.MediaStore
 import android.util.Log
@@ -26,7 +27,10 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val TAG = "ScopedStorage"
         const val FILE_NAME = "sample.png"
-        const val SHARED_FILE_NAME = "sample_shared.png"
+        /**
+         * FIXME: deleteFileFromContentResolver で消せないのでファイル名を毎回変えて確認している
+         */
+        const val SHARED_FILE_NAME = "sample_shared9.png"
         const val REQUEST_READ_MEDIA_IMAGES = 1
     }
 
@@ -51,8 +55,7 @@ class MainActivity : AppCompatActivity() {
             saveToSharedCollection()
         }
         loadFromSharedCollectionButton.setOnClickListener {
-            //loadFromSharedCollection()
-            loadOtherAppFileFromSharedCollection()
+            loadFromSharedCollection()
         }
 
         requestPermission()
@@ -115,67 +118,55 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun saveToSharedCollection() {
-        val shared = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-        if (shared.isDirectory && shared.exists().not()) {
-            shared.mkdir()
-        }
-        // /storage/emulated/0/Pictures/sample.png
-        val file = createFileFromBitmap(getDrawable(R.mipmap.ic_launcher).toBitmap(), shared, SHARED_FILE_NAME)
+        deleteFileFromContentResolver(SHARED_FILE_NAME) // DEBUG: DISPLAY_NAME が同じだと null が返ってくるので消しておく
 
-        // TODO: Caused by: java.io.IOException: No such file or directory で保存できない
-        // Android 9 以下であればパーミションがあれば保存できる
-
-        // shared collection に保存するというのは、insert で行うの？
+        // まず先に保存先の ContentResolver 経由で insert して Uri を確保し、そのあとにその Uri に対して書き込みを行うらしい
         val contentValues = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, SHARED_FILE_NAME)
             put(MediaStore.Images.Media.MIME_TYPE, "image/png")
-            put(MediaStore.Images.Media.DATA, file.absolutePath)
+            put(MediaStore.Images.Media.IS_PENDING, true)
         }
         val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
         Log.d(TAG, "saveToSharedCollection : $uri")
-
-    }
-
-    private fun loadFromSharedCollection() {
-        val shared = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-        val file = File(shared, SHARED_FILE_NAME)
-        Log.d(TAG, "loadFromSharedCollection : $file")
-        if (file.exists()) {
-            val bitmap = BitmapFactory.decodeFile(file.path)
-            imageView.setImageBitmap(bitmap)
-        } else {
-            Log.w(TAG, "loadFromSharedCollection : $file is not exists.")
+        if (uri != null) {
+            // File のパスが知りたいが、MediaStore.MediaColumns.DATA は deprecated で ContentResolver.openFileDescriptor を利用する必要がある
+            val fileDescriptor = contentResolver.openFileDescriptor(uri, "rwt")
+            writeBitmapToFile(getDrawable(R.mipmap.ic_launcher).toBitmap(), fileDescriptor)
         }
     }
 
-    private fun loadOtherAppFileFromSharedCollection() {
+    private fun loadFromSharedCollection() {
+        // READ_MEDIA_IMAGES の permission が許可されていたら他のアプリの画像も許可されていなかったら自分のアプリのみの画像を読み込む想定
         val projection = listOf(BaseColumns._ID, MediaStore.Images.Media.DISPLAY_NAME)
         val cursor = contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection.toTypedArray(), null, null, null
         )
-
+        
+        val imageList: MutableList<Pair<Long, String>> = mutableListOf()
         // パーミッションがないと cursor が 0件になる。エラーは表示されない
-        if (cursor.moveToFirst().not()) {
-            cursor.close()
-            return
+        if (cursor.moveToFirst()) {
+            val idColumnIndex = cursor.getColumnIndex(BaseColumns._ID)
+            val displayNameColumnIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+
+            while (cursor.isAfterLast.not()) {
+                imageList.add(cursor.getLong(idColumnIndex) to cursor.getString(displayNameColumnIndex))
+                cursor.moveToNext()
+            }
         }
 
-        val idColumnIndex = cursor.getColumnIndex(BaseColumns._ID)
-        val displayNameColumnIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+        Log.d(TAG, "loadFromSharedCollection : $imageList")
 
-        Log.d(
-            TAG,
-            "loadOtherAppFileFromSharedCollection : " +
-                    "${cursor.getString(displayNameColumnIndex)} : ${cursor.getLong(idColumnIndex)}"
-        )
+        if (imageList.isNotEmpty()) {
+            val firstImageId = imageList.first().first
 
-        val contentUri = ContentUris.withAppendedId(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            cursor.getLong(idColumnIndex)
-        )
-        Log.d(TAG, "loadOtherAppFileFromSharedCollection : $contentUri")
-        imageView.setImageURI(contentUri)
+            val contentUri = ContentUris.withAppendedId(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                firstImageId
+            )
+            Log.d(TAG, "loadFromSharedCollection : $contentUri")
+            imageView.setImageURI(contentUri)
+        }
 
         cursor.close()
     }
@@ -190,16 +181,43 @@ class MainActivity : AppCompatActivity() {
             return file
         }
 
-        file.createNewFile()
+        writeBitmapToFile(bitmap, file)
+
+        return file
+    }
+
+    private fun writeBitmapToFile(bitmap: Bitmap, file: File) {
+        if (file.exists().not()) {
+            file.createNewFile()
+        }
 
         val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.PNG, 0, outputStream)
+        val result = bitmap.compress(Bitmap.CompressFormat.PNG, 0, outputStream)
+
+        Log.d(TAG, "writeBitmapToFile : $result")
 
         val fileOutputStream = FileOutputStream(file)
         fileOutputStream.write(outputStream.toByteArray())
         fileOutputStream.flush()
         fileOutputStream.close()
+    }
 
-        return file
+    private fun writeBitmapToFile(bitmap: Bitmap, fileDescriptor: ParcelFileDescriptor) {
+        val fileOutputStream = ParcelFileDescriptor.AutoCloseOutputStream(fileDescriptor)
+        val result = bitmap.compress(Bitmap.CompressFormat.PNG, 0, fileOutputStream)
+
+        Log.d(TAG, "writeBitmapToFile : $result")
+
+        fileOutputStream.flush()
+    }
+
+    private fun deleteFileFromContentResolver(fileName: String) {
+        // 動作しない：DISPLAY_NAME でのフィルタリングでは削除できない(0が返却される)
+        val id = contentResolver.delete(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            "${MediaStore.Images.Media.DISPLAY_NAME}=?",
+            listOf(fileName).toTypedArray()
+        )
+        Log.d(TAG, "deleteFileFromContentResolver : $id")
     }
 }
