@@ -92,12 +92,12 @@ class MainActivity : AppCompatActivity() {
      * 他のアプリからのアクセスは不可
      */
     private fun saveToSandbox() {
-        val sandbox = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        val sandbox = getExternalFilesDir(Environment.DIRECTORY_PICTURES) ?: return
         if (sandbox.isDirectory && sandbox.exists().not()) {
             sandbox.mkdir()
         }
         // /storage/emulated/0/Android/data/com.github.mag0716.scopedstoragesample/files/Pictures/sample.png
-        createFileFromBitmap(getDrawable(R.mipmap.ic_launcher).toBitmap(), sandbox, FILE_NAME)
+        createFileFromBitmap(getDrawable(R.mipmap.ic_launcher)!!.toBitmap(), sandbox, FILE_NAME)
     }
 
     /**
@@ -131,7 +131,9 @@ class MainActivity : AppCompatActivity() {
         if (uri != null) {
             // File のパスが知りたいが、MediaStore.MediaColumns.DATA は deprecated で ContentResolver.openFileDescriptor を利用する必要がある
             val fileDescriptor = contentResolver.openFileDescriptor(uri, "rwt")
-            writeBitmapToFile(getDrawable(R.mipmap.ic_launcher).toBitmap(), fileDescriptor)
+            if (fileDescriptor != null) {
+                writeBitmapToFile(getDrawable(R.mipmap.ic_launcher)!!.toBitmap(), fileDescriptor)
+            }
         }
     }
 
@@ -142,10 +144,10 @@ class MainActivity : AppCompatActivity() {
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection.toTypedArray(), null, null, null
         )
-        
+
         val imageList: MutableList<Pair<Long, String>> = mutableListOf()
         // パーミッションがないと cursor が 0件になる。エラーは表示されない
-        if (cursor.moveToFirst()) {
+        if (cursor != null && cursor.moveToFirst()) {
             val idColumnIndex = cursor.getColumnIndex(BaseColumns._ID)
             val displayNameColumnIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
 
@@ -168,7 +170,9 @@ class MainActivity : AppCompatActivity() {
             imageView.setImageURI(contentUri)
         }
 
-        cursor.close()
+        if (cursor != null) {
+            cursor.close()
+        }
     }
 
     private fun createFileFromBitmap(bitmap: Bitmap, directory: File, fileName: String): File {
