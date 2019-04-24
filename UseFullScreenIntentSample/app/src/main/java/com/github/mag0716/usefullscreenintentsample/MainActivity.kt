@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.widget.Button
@@ -35,14 +36,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun notifyFullScreenIntentNotification() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelIds = notificationManager.notificationChannels.map { it.id }.toList()
-        if (channelIds.contains(CHANNEL_ID).not()) {
-            val channel = NotificationChannel(
-                    CHANNEL_ID,
-                    CHANNEL_ID,
-                    NotificationManager.IMPORTANCE_HIGH
-            )
-            notificationManager.createNotificationChannel(channel)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelIds = notificationManager.notificationChannels.map { it.id }.toList()
+            if (channelIds.contains(CHANNEL_ID).not()) {
+                val channel = NotificationChannel(
+                        CHANNEL_ID,
+                        CHANNEL_ID,
+                        NotificationManager.IMPORTANCE_HIGH
+                )
+                notificationManager.createNotificationChannel(channel)
+            }
         }
 
         val fullScreenIntent = Intent(this, MainActivity::class.java)
@@ -52,7 +55,7 @@ class MainActivity : AppCompatActivity() {
                 PendingIntent.FLAG_UPDATE_CURRENT)
 
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon(R.drawable.ic_notification_icon)
                 .setContentTitle("Content Title")
                 .setContentText("Content Text")
                 .setAutoCancel(true)
