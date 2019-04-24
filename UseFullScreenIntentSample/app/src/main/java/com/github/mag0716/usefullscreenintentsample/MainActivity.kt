@@ -19,19 +19,31 @@ class MainActivity : AppCompatActivity() {
         private const val CHANNEL_ID = "Channel"
     }
 
-    private lateinit var button: Button
+    private lateinit var startActivityInBackgroundButton: Button
+    private lateinit var notificationButton: Button
     private val handler = Handler()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        button = findViewById(R.id.button)
-        button.setOnClickListener {
-            handler.postDelayed(Runnable {
+        startActivityInBackgroundButton = findViewById(R.id.start_activity_in_background_button)
+        startActivityInBackgroundButton.setOnClickListener {
+            handler.postDelayed({
+                startActivityInBackground()
+            }, 3000)
+            finish()
+        }
+        notificationButton = findViewById(R.id.notification_button)
+        notificationButton.setOnClickListener {
+            handler.postDelayed({
                 notifyFullScreenIntentNotification()
             }, 3000)
         }
+    }
+
+    private fun startActivityInBackground() {
+        startActivity(Intent(this, MainActivity::class.java))
     }
 
     private fun notifyFullScreenIntentNotification() {
