@@ -29,6 +29,7 @@ class MainActivity : AppCompatActivity() {
 
         startActivityInBackgroundButton = findViewById(R.id.start_activity_in_background_button)
         startActivityInBackgroundButton.setOnClickListener {
+            // beta2 では Developer Options で Allow background activity starts を disable にしても Toast が出るだけ
             handler.postDelayed({
                 startActivityInBackground()
             }, 3000)
@@ -60,6 +61,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // beta2 では android.permission.USE_FULL_SCREEN_INTENT がなくても表示可能？
         val fullScreenIntent = Intent(this, MainActivity::class.java)
         val fullScreenPendingIntent = PendingIntent.getActivity(this,
                 0,
